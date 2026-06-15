@@ -10,8 +10,11 @@
 
 Переменные окружения (используйте Railway Secrets или `.env` локально):
 
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` — настройки SMTP.
+- `EMAIL_PROVIDER` — `smtp`, `resend` или `sendgrid`.
+- `EMAIL_API_KEY` — ключ API для `resend` или `sendgrid`.
+- `EMAIL_FROM` — адрес отправителя при API-отправке.
 - `EMAIL_RECEIVER` — адрес получателя.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` — настройки SMTP, если используете `EMAIL_PROVIDER=smtp`.
 - `CLAUDE_API_URL`, `CLAUDE_API_KEY` — (опционально) для улучшенных резюме через Claude.
 - `DAYS_LOOKBACK` — сколько дней назад считать новые статьи (по умолчанию 3).
 

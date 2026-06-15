@@ -22,12 +22,15 @@ SEEN_FILE = os.getenv("SEEN_FILE", "seen.json")
 CLAUDE_API_URL = os.getenv("CLAUDE_API_URL")
 CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
 
+EMAIL_PROVIDER = os.getenv("EMAIL_PROVIDER", "smtp").lower()
+EMAIL_API_KEY = os.getenv("EMAIL_API_KEY")
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 EMAIL_SENDER = os.getenv("EMAIL_SENDER", SMTP_USERNAME)
 EMAIL_RECEIVER = os.getenv("EMAIL_RECEIVER")
+EMAIL_FROM = os.getenv("EMAIL_FROM", EMAIL_SENDER)
 
 
 def load_seen():
@@ -116,23 +119,67 @@ def build_html(items):
 
 
 def send_email(subject, html_body):
-    if not SMTP_PASSWORD or not EMAIL_RECEIVER or not SMTP_USERNAME:
-        print("SMTP не настроен — пропускаю отправку письма.")
+    if EMAIL_PROVIDER == "smtp":
+        if not SMTP_PASSWORD or not EMAIL_RECEIVER or not SMTP_USERNAME:
+            print("SMTP не настроен — пропускаю отправку письма.")
+            return
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = EMAIL_SENDER
+        msg["To"] = EMAIL_RECEIVER
+        part = MIMEText(html_body, "html", _charset="utf-8")
+        msg.attach(part)
+        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
+        try:
+            s.starttls()
+            s.login(SMTP_USERNAME, SMTP_PASSWORD)
+            s.sendmail(EMAIL_SENDER, [EMAIL_RECEIVER], msg.as_string())
+            print("Письмо отправлено на", EMAIL_RECEIVER)
+        finally:
+            s.quit()
         return
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = EMAIL_SENDER
-    msg["To"] = EMAIL_RECEIVER
-    part = MIMEText(html_body, "html", _charset="utf-8")
-    msg.attach(part)
-    s = smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30)
-    try:
-        s.starttls()
-        s.login(SMTP_USERNAME, SMTP_PASSWORD)
-        s.sendmail(EMAIL_SENDER, [EMAIL_RECEIVER], msg.as_string())
+
+    if EMAIL_PROVIDER == "resend":
+        if not EMAIL_API_KEY or not EMAIL_FROM or not EMAIL_RECEIVER:
+            print("Resend API не настроен — пропускаю отправку письма.")
+            return
+        url = "https://api.resend.com/emails"
+        payload = {
+            "from": EMAIL_FROM,
+            "to": [EMAIL_RECEIVER],
+            "subject": subject,
+            "html": html_body,
+        }
+        headers = {
+            "Authorization": f"Bearer {EMAIL_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        resp.raise_for_status()
         print("Письмо отправлено на", EMAIL_RECEIVER)
-    finally:
-        s.quit()
+        return
+
+    if EMAIL_PROVIDER == "sendgrid":
+        if not EMAIL_API_KEY or not EMAIL_FROM or not EMAIL_RECEIVER:
+            print("SendGrid API не настроен — пропускаю отправку письма.")
+            return
+        url = "https://api.sendgrid.com/v3/mail/send"
+        payload = {
+            "personalizations": [{"to": [{"email": EMAIL_RECEIVER}]}],
+            "from": {"email": EMAIL_FROM},
+            "subject": subject,
+            "content": [{"type": "text/html", "value": html_body}],
+        }
+        headers = {
+            "Authorization": f"Bearer {EMAIL_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        resp.raise_for_status()
+        print("Письмо отправлено на", EMAIL_RECEIVER)
+        return
+
+    print(f"Неизвестный EMAIL_PROVIDER={EMAIL_PROVIDER}. Укажите smtp, resend или sendgrid.")
 
 
 def main():
