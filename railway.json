@@ -1,0 +1,8 @@
+{
+  "$schema": "https://railway.app",
+  "build": { "builder": "NIXPACKS" },
+  "deploy": {
+    "cron": "0 9 */2 * *",
+    "command": "python3 bot.py"
+  }
+}
