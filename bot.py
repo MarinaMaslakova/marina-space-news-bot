@@ -8,6 +8,7 @@ import requests
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from requests.exceptions import HTTPError
 
 # Configuration (can be overridden by env vars)
 RSS_FEEDS = [
@@ -155,7 +156,12 @@ def send_email(subject, html_body):
             "Content-Type": "application/json",
         }
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except HTTPError as exc:
+            print("Resend API error:", exc)
+            print("Response body:", resp.text)
+            return
         print("Письмо отправлено на", EMAIL_RECEIVER)
         return
 
@@ -175,7 +181,12 @@ def send_email(subject, html_body):
             "Content-Type": "application/json",
         }
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except HTTPError as exc:
+            print("SendGrid API error:", exc)
+            print("Response body:", resp.text)
+            return
         print("Письмо отправлено на", EMAIL_RECEIVER)
         return
 
