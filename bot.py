@@ -156,9 +156,53 @@ def send_email(subject, html_body):
             "Content-Type": "application/json",
         }
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        if resp.status_code >= 400:
+            # Try to show helpful debug info
+            try:
+                body = resp.json()
+            except Exception:
+                body = resp.text
+            print(f"Resend API error: status={resp.status_code}")
+            print("Response body:", body)
+
+            # If domain isn't verified, optionally fall back to SendGrid when user provided SENDGRID_API_KEY
+            msg = ""
+            try:
+                if isinstance(body, dict):
+                    msg = body.get("message", "") or str(body)
+                else:
+                    msg = str(body)
+            except Exception:
+                msg = str(body)
+
+            if resp.status_code == 403 and "domain is not verified" in msg.lower():
+                sg_key = os.getenv("SENDGRID_API_KEY") or os.getenv("ALT_EMAIL_API_KEY")
+                if sg_key:
+                    print("Resend rejected: domain not verified. Falling back to SendGrid (SENDGRID_API_KEY detected).")
+                    sg_url = "https://api.sendgrid.com/v3/mail/send"
+                    sg_payload = {
+                        "personalizations": [{"to": [{"email": EMAIL_RECEIVER}]}],
+                        "from": {"email": EMAIL_FROM},
+                        "subject": subject,
+                        "content": [{"type": "text/html", "value": html_body}],
+                    }
+                    sg_headers = {"Authorization": f"Bearer {sg_key}", "Content-Type": "application/json"}
+                    sg_resp = requests.post(sg_url, json=sg_payload, headers=sg_headers, timeout=30)
+                    try:
+                        sg_resp.raise_for_status()
+                        print("Письмо отправлено через SendGrid (fallback) на", EMAIL_RECEIVER)
+                        return
+                    except HTTPError as exc2:
+                        print("SendGrid fallback error:", exc2)
+                        print("Response body:", sg_resp.text)
+                        return
+            # No fallback or fallback failed — give actionable guidance
+            print("Подсказка: для Resend отправитель должен быть подтверждён в https://resend.com/domains")
+            return
         try:
             resp.raise_for_status()
         except HTTPError as exc:
+            # This branch is unlikely, but keep original error printing
             print("Resend API error:", exc)
             print("Response body:", resp.text)
             return

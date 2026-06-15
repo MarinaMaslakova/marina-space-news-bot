@@ -14,6 +14,8 @@
 - `EMAIL_API_KEY` — ключ API для `resend` или `sendgrid`.
 - `EMAIL_FROM` — адрес отправителя при API-отправке.
 - `EMAIL_RECEIVER` — адрес получателя.
+	- Для `resend` отправитель должен быть из проверенного домена Resend; gmail.com не работает без проверки домена.
+		- Если вы не хотите или не можете верифицировать домен в Resend, можно указать `SENDGRID_API_KEY` в переменных окружения — скрипт попробует автоматически упасть на SendGrid при ошибке в Resend.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` — настройки SMTP, если используете `EMAIL_PROVIDER=smtp`.
 - `CLAUDE_API_URL`, `CLAUDE_API_KEY` — (опционально) для улучшенных резюме через Claude.
 - `DAYS_LOOKBACK` — сколько дней назад считать новые статьи (по умолчанию 3).
